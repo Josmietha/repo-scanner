@@ -4,9 +4,11 @@ from openpyxl import Workbook
 from getpass import getpass
 
 #Step 1: User Input
-print("GitHub Repository Export Tool")
-username = input("Enter your GitHub username: ")
-token = getpass("Enter your GitHub token (input hidden): ")
+username = os.getenv('GITHUB_USERNAME')
+token = os.getenv('GITHUB_TOKEN')
+
+if not username or not token:
+    raise Exception("Missing required environment variables GITHUB_USERNAME or GITHUB_TOKEN")
 
 #Step 2: Prepare API call
 headers = {
