@@ -1,48 +1,62 @@
+import os
 import requests
+from openpyxl import Workbook
+from getpass import getpass
 
-# Config - update these
-ORG_NAME = "YourOrgName"
-YOUR_GITHUB_USERNAME = "your-username"
-GITHUB_TOKEN = "your-personal-access-token"  # Keep this secure!
+#Step 1: User Input
+print("GitHub Repository Export Tool")
+username = input("Enter your GitHub username: ")
+token = getpass("Enter your GitHub token (input hidden): ")
 
-def get_repos_created_by_user(org_name, username, token):
-    headers = {"Authorization": f"token {token}"}
-    repos = []
-    page = 1
+#Step 2: Prepare API call
+headers = {
+    "Authorization": f"token {token}",
+    "Accept": "application/vnd.github+json"
+}
 
-    while True:
-        url = f"https://api.github.com/orgs/{org_name}/repos?per_page=100&page={page}"
-        response = requests.get(url, headers=headers)
-        if response.status_code != 200:
-            print(f"Error fetching repos: {response.status_code}")
-            break
+page = 1
+all_repos = []
 
-        data = response.json()
-        if not data:
-            break
+print("Fetching repositories...")
 
-        for repo in data:
-            # GitHub API returns 'owner' and 'created_at', but doesn't specify creator directly,
-            # so we check repo owner login and see if it matches the username.
-            # But in org repos, owner is org, so we check 'owner' inside the repo 'created_by' if possible.
-            # Since API doesn’t directly give creator, one workaround is to check repo 'owner' + 'permissions' + contributors.
-            # Here we simplify: Assume repo creator username stored in repo['owner']['login'] or last commit author - tricky.
-            # Let's filter repos where the user is listed as the repo owner or in contributors (a more advanced approach).
-            # For simplicity, assume if repo name contains your username (or use other logic).
-            # You can adapt this based on your GitHub setup.
+while True:
+    url = f"https://api.github.com/user/repos?per_page=100&page={page}&visibility=all"
+    response = requests.get(url, headers=headers)
 
-            # Simple heuristic: Check if 'owner' is your username (won't work for org repos)
-            # So just list all repos here; filtering can be enhanced.
+    if response.status_code != 200:
+        print(f"🚨 API Error: {response.status_code}")
+        print("Response:", response.text)
+        break
 
-            # For demonstration: Add all repos
-            repos.append(repo['name'])
+    repos = response.json()
 
-        page += 1
+    if not repos:
+        break
 
-    return repos
+    all_repos.extend(repos)
+    page += 1
 
-if __name__ == "__main__":
-    repos = get_repos_created_by_user(ORG_NAME, YOUR_GITHUB_USERNAME, GITHUB_TOKEN)
-    print(f"Repositories under org '{ORG_NAME}' created by '{YOUR_GITHUB_USERNAME}':")
-    for r in repos:
-        print(f"- {r}")
+print(f"Total repositories fetched: {len(all_repos)}")
+
+#Step 3: Save to Excel
+wb = Workbook()
+ws = wb.active
+ws.title = "GitHub Repos"
+
+# Headers
+ws.append([
+    "Name", "URL"
+])
+
+# Repo data
+for repo in all_repos:
+    ws.append([
+        repo.get('name', ''),
+        repo.get('html_url', ''),
+    ])
+
+# File saving
+filename = f"{username}_github_repos.xlsx"
+wb.save(filename)
+
+print(f"📁 Excel file saved as: {filename}")
