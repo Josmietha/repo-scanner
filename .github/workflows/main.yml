@@ -1,9 +1,9 @@
 name: GitHub Repo Export
 
 on:
-  workflow_dispatch:     # Allows manual trigger from GitHub UI
+  workflow_dispatch:
   schedule:
-    - cron: '0 0 * * 1' # Runs every Monday at 00:00 UTC, change as needed
+    - cron: '0 0 * * 1'
 
 jobs:
   export_repos:
@@ -16,7 +16,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: '3.x'   # Use latest 3.x available
+        python-version: '3.x'
 
     - name: Install dependencies
       run: |
@@ -25,6 +25,7 @@ jobs:
 
     - name: Run repo export script
       env:
+        GITHUB_USERNAME: your-github-username-here
         GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
       run: |
         python scan_repos.py
