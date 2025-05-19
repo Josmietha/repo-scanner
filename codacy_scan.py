@@ -1,46 +1,68 @@
-import requests
 import os
+import requests
 from openpyxl import Workbook
 
-CODACY_API = "https://api.codacy.com/2.0"
-TOKEN = os.getenv("CODACY_TOKEN")
+CODACY_TOKEN = os.getenv("CODACY_TOKEN")
+if not CODACY_TOKEN:
+    raise Exception("🚨 Missing required environment variable: CODACY_TOKEN")
+
 HEADERS = {
-    "Authorization": f"token {TOKEN}",
+    "api-token": CODACY_TOKEN,
     "Accept": "application/json"
 }
 
 def get_organizations():
-    resp = requests.get(f"{CODACY_API}/organizations", headers=HEADERS)
-    resp.raise_for_status()
-    return resp.json().get("data", [])
+    url = "https://api.codacy.com/2.0/organizations"
+    response = requests.get(url, headers=HEADERS)
+    print(f"🔍 Fetching organizations: {response.status_code}")
+    response.raise_for_status()
+    return response.json().get("data", [])
 
-def get_projects(org_id):
-    url = f"{CODACY_API}/organizations/{org_id}/projects"
-    resp = requests.get(url, headers=HEADERS)
-    resp.raise_for_status()
-    return resp.json().get("data", [])
+def get_repos_for_org(org_id):
+    url = f"https://api.codacy.com/2.0/organizations/{org_id}/repositories"
+    response = requests.get(url, headers=HEADERS)
+    print(f"📦 Fetching repos for Org {org_id}: {response.status_code}")
+    response.raise_for_status()
+    return response.json().get("data", [])
 
-def main():
+def export_to_excel(repos):
     wb = Workbook()
     ws = wb.active
     ws.title = "Codacy Repos"
-    ws.append(["Repo Name", "Repository URL", "Project ID"])
 
+    ws.append(["Repository Name", "Language", "Provider", "Enabled", "URL"])
+
+    for repo in repos:
+        ws.append([
+            repo.get("name", ""),
+            repo.get("language", ""),
+            repo.get("provider", ""),
+            str(repo.get("enabled", False)),
+            repo.get("url", "")
+        ])
+
+    filename = "codacy_repos.xlsx"
+    wb.save(filename)
+    print(f"✅ Excel saved: {filename}")
+
+def main():
+    all_repos = []
     orgs = get_organizations()
-    print(f"🧩 Found {len(orgs)} Codacy org(s)")
+
+    if not orgs:
+        print("❌ No organizations found for your Codacy token.")
+        return
 
     for org in orgs:
-        print(f"🔍 Scanning org: {org['name']}")
-        projects = get_projects(org["id"])
-        for proj in projects:
-            ws.append([
-                proj.get("name"),
-                proj.get("repositoryUrl"),
-                proj.get("id")
-            ])
+        org_id = org.get("id")
+        if org_id:
+            repos = get_repos_for_org(org_id)
+            all_repos.extend(repos)
 
-    wb.save("codacy_repos.xlsx")
-    print("✅ Codacy repos exported to codacy_repos.xlsx")
+    if not all_repos:
+        print("⚠️ No repositories found across your organizations.")
+    else:
+        export_to_excel(all_repos)
 
 if __name__ == "__main__":
     main()
