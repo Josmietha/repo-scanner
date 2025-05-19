@@ -6,21 +6,22 @@ on:
 jobs:
   codacy_scan:
     runs-on: ubuntu-latest
+
     steps:
     - name: Checkout repository
       uses: actions/checkout@v3
-      
+
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: 3.x
+        python-version: '3.x'
 
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
+        pip install --upgrade pip
         pip install requests openpyxl
 
-    - name: List Codacy repos
+    - name: Run codacy_scan.py
       env:
         CODACY_TOKEN: ${{ secrets.CODACY_TOKEN }}
       run: |
@@ -28,4 +29,8 @@ jobs:
 
     - name: Commit and Push Excel file
       run: |
-        git config user.name "
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git add codacy_repos.xlsx
+        git commit -m "📊 Auto-exported Codacy repos list"
+        git push
