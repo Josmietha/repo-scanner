@@ -12,7 +12,7 @@ HEADERS = {
 }
 
 def get_organizations():
-    url = "https://api.codacy.com/2.0/organizations"
+    url = "https://api.codacy.com/organizations"
     response = requests.get(url, headers=HEADERS)
     print(f"🔍 Fetching organizations: {response.status_code}")
     response.raise_for_status()
