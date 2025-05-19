@@ -21,11 +21,13 @@ jobs:
         pip install --upgrade pip
         pip install requests openpyxl
 
-    - name: Run codacy_scan.py
+    - name: List Codacy repos
       env:
         CODACY_TOKEN: ${{ secrets.CODACY_TOKEN }}
       run: |
-        python codacy_scan.py
+        ls -l  # 🧠 Debugging trick: Shows all files in the working directory
+        python ./codacy_scan.py
+
 
     - name: Commit and Push Excel file
       run: |
