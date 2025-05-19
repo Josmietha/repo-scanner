@@ -31,8 +31,6 @@ def should_include_repo(repo):
             metadata = json.load(f)
         if FILTER_EXPORT_ONLY and not metadata.get("export", False):
             return False
-        if metadata.get("category") != FILTER_CATEGORY:
-            return False
         return True
     except Exception as e:
         print(f"⚠Error reading custom.json from {repo['name']}: {e}")
@@ -42,14 +40,13 @@ print("Fetching repositories...")
 page = 1
 all_repos = []
 
-print("Fetching repositories...")
 
 while True:
     url = f"https://api.github.com/user/repos?per_page=100&page={page}&visibility=all"
     response = requests.get(url, headers=headers)
 
     if response.status_code != 200:
-        print(f"🚨 API Error: {response.status_code}")
+        print(f"API Error: {response.status_code}")
         print("Response:", response.text)
         break
 
@@ -62,6 +59,8 @@ while True:
     page += 1
 
 print(f"Total repositories fetched: {len(all_repos)}")
+filtered_repos = [repo for repo in all_repos if should_include_repo(repo)]
+print(f"✅ {len(filtered_repos)} repos matched criteria")
 
 #Step 3: Save to Excel
 wb = Workbook()
@@ -84,4 +83,4 @@ for repo in all_repos:
 filename = f"{username}_github_repos.xlsx"
 wb.save(filename)
 
-print(f"📁 Excel file saved as: {filename}")
+print(f"Excel file saved as: {filename}")
