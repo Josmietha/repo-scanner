@@ -167,6 +167,46 @@ filtered_repos = [repo for repo in all_repos if should_include_repo(repo)]
 print(f"✅ {len(filtered_repos)} repos matched (export=true AND status='changes required')")
 
 # Step 6: Save to Excel
+# Step 6: Save to Excel
+wb = Workbook()
+ws = wb.active
+ws.title = "Filtered GitHub Repos"
+
+# Define all possible property keys you expect
+custom_keys = ["export", "status"]
+
+# Add headers
+ws.append(["Name", "URL"] + [key.capitalize() for key in custom_keys])
+
+# Write repo data
+for repo in filtered_repos:
+    # Clone the repo again (or cache metadata during filtering phase)
+    clone_url = repo['clone_url']
+    temp_dir = tempfile.mkdtemp()
+    metadata = {}
+
+    try:
+        subprocess.run(["git", "clone", "--depth=1", clone_url, temp_dir], check=True, stdout=subprocess.DEVNULL)
+        custom_path = os.path.join(temp_dir, ".github", "custom.json")
+
+        if os.path.exists(custom_path):
+            with open(custom_path, "r") as f:
+                metadata = json.load(f)
+
+    except Exception as e:
+        print(f"⚠️ Could not re-read metadata for {repo['name']} — {e}")
+
+    finally:
+        shutil.rmtree(temp_dir)
+
+    # Build row
+    row = [repo['name'], repo['html_url']] + [metadata.get(key, "") for key in custom_keys]
+    ws.append(row)
+
+filename = f"{username}_filtered_repos.xlsx"
+wb.save(filename)
+print(f"📁 Excel file saved as: {filename}")
+'''
 wb = Workbook()
 ws = wb.active
 ws.title = "Filtered GitHub Repos"
@@ -177,4 +217,4 @@ for repo in filtered_repos:
 
 filename = f"{username}_filtered_repos.xlsx"
 wb.save(filename)
-print(f"📁 Excel file saved as: {filename}")
+print(f"📁 Excel file saved as: {filename}")'''
