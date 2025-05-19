@@ -7,6 +7,9 @@ jobs:
   codacy_scan:
     runs-on: ubuntu-latest
     steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+      
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
@@ -25,8 +28,4 @@ jobs:
 
     - name: Commit and Push Excel file
       run: |
-        git config user.name "github-actions[bot]"
-        git config user.email "github-actions[bot]@users.noreply.github.com"
-        git add codacy_repos.xlsx
-        git commit -m "📊 Updated Codacy repo list"
-        git push
+        git config user.name "
