@@ -144,7 +144,7 @@ def get_repositories_with_properties():
     page = 1
     per_page = 100
     while True:
-        url = f"https://api.github.com/orgs/{ORG_NAME}/properties/values?per_page={per_page}&page={page}"
+        url = f"https://api.github.com/user/repos?per_page=100&page={page}&visibility=all"
         response = requests.get(url, headers=HEADERS)
         if response.status_code != 200:
             raise Exception(f"Failed to fetch repositories: {response.status_code} - {response.text}")
