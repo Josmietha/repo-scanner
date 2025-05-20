@@ -180,7 +180,7 @@ def filter_repositories(repos):
         export_value = props.get('export', '').lower()
         status_value = props.get('status', '').lower()
 
-        if export_value == REQUIRED_EXPORT and status_value == REQUIRED_STATUS.lower():
+        if export_value == REQUIRED_EXPORT and status_value == REQUIRED_STATUS:
             filtered.append({
                 'name': repo_name,
                 'full_name': repo['full_name'],
