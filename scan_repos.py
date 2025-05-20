@@ -127,8 +127,8 @@ from openpyxl import Workbook
 
 # Configuration
 GITHUB_TOKEN = os.getenv('GITHUB_TOKEN')
-ORG_NAME = 'j-chaganti'  # Replace with your organization name
-REQUIRED_EXPORT = True
+ORG_NAME = 'j-chaganti'  # Your GitHub org or username
+REQUIRED_EXPORT = 'true'  # as string, GitHub stores properties as strings
 REQUIRED_STATUS = 'changes required'
 
 if not GITHUB_TOKEN:
@@ -139,10 +139,9 @@ HEADERS = {
     "Accept": "application/vnd.github+json"
 }
 
-def get_repositories_with_properties():
+def get_repositories():
     repos = []
     page = 1
-    per_page = 100
     while True:
         url = f"https://api.github.com/user/repos?per_page=100&page={page}&visibility=all"
         response = requests.get(url, headers=HEADERS)
@@ -155,16 +154,38 @@ def get_repositories_with_properties():
         page += 1
     return repos
 
+def get_custom_properties(owner, repo_name):
+    url = f"https://api.github.com/repos/{owner}/{repo_name}/properties"
+    response = requests.get(url, headers=HEADERS)
+    if response.status_code == 404:
+        # No custom properties set for this repo
+        return {}
+    if response.status_code != 200:
+        print(f"Warning: Could not fetch properties for {owner}/{repo_name}: {response.status_code}")
+        return {}
+    return response.json()
+
 def filter_repositories(repos):
     filtered = []
     for repo in repos:
-        properties = {prop['property_name']: prop['value'] for prop in repo.get('properties', [])}
-        if properties.get('export') == str(REQUIRED_EXPORT).lower() and properties.get('status', '').lower() == REQUIRED_STATUS.lower():
+        owner = repo['owner']['login']
+        repo_name = repo['name']
+        props = get_custom_properties(owner, repo_name)
+
+        # Debug print to see what's inside props
+        # print(f"Repo: {repo_name}, Properties: {props}")
+
+        # props is expected to be a dict with property names and their values
+        # GitHub API usually returns property values as strings
+        export_value = props.get('export', '').lower()
+        status_value = props.get('status', '').lower()
+
+        if export_value == REQUIRED_EXPORT and status_value == REQUIRED_STATUS.lower():
             filtered.append({
-                'name': repo['repository_name'],
-                'full_name': repo['repository_full_name'],
-                'export': properties.get('export'),
-                'status': properties.get('status')
+                'name': repo_name,
+                'full_name': repo['full_name'],
+                'export': export_value,
+                'status': status_value
             })
     return filtered
 
@@ -180,8 +201,14 @@ def export_to_excel(repos):
     print(f"Excel file saved as: {filename}")
 
 def main():
-    repos_with_props = get_repositories_with_properties()
-    filtered_repos = filter_repositories(repos_with_props)
+    print("Fetching repositories...")
+    repos = get_repositories()
+    print(f"Total repositories fetched: {len(repos)}")
+
+    print("Filtering repositories based on custom properties...")
+    filtered_repos = filter_repositories(repos)
+    print(f"Repositories matching filter: {len(filtered_repos)}")
+
     export_to_excel(filtered_repos)
 
 if __name__ == "__main__":
