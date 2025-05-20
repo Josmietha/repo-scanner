@@ -121,95 +121,83 @@ filename = f"{username}_filtered_repos.xlsx"
 wb.save(filename)
 print(f"📁 Excel file saved as: {filename}")
 '''
-import os
-import requests
+from github import Github
 from openpyxl import Workbook
 
-# Configuration
-GITHUB_TOKEN = os.getenv('GITHUB_TOKEN')
-ORG_NAME = 'j-chaganti'  # Your GitHub org or username
-REQUIRED_EXPORT = 'true'  # as string, GitHub stores properties as strings
-REQUIRED_STATUS = 'changes required'
+REQUIRED_EXPORT = "true"
+REQUIRED_STATUS = "changes required"
 
-if not GITHUB_TOKEN:
-    raise Exception("Missing GITHUB_TOKEN environment variable.")
+def get_org_repos_with_custom_properties(org_name, github_token):
+    g = Github(github_token)
+    org = g.get_organization(org_name)
+    repos = org.get_repos()
 
-HEADERS = {
-    "Authorization": f"Bearer {GITHUB_TOKEN}",
-    "Accept": "application/vnd.github+json"
-}
-
-def get_repositories():
-    repos = []
-    page = 1
-    while True:
-        url = f"https://api.github.com/user/repos?per_page=100&page={page}&visibility=all"
-        response = requests.get(url, headers=HEADERS)
-        if response.status_code != 200:
-            raise Exception(f"Failed to fetch repositories: {response.status_code} - {response.text}")
-        data = response.json()
-        if not data:
-            break
-        repos.extend(data)
-        page += 1
-    return repos
-
-def get_custom_properties(owner, repo_name):
-    url = f"https://api.github.com/repos/{owner}/{repo_name}/properties"
-    response = requests.get(url, headers=HEADERS)
-    if response.status_code == 404:
-        # No custom properties set for this repo
-        return {}
-    if response.status_code != 200:
-        print(f"Warning: Could not fetch properties for {owner}/{repo_name}: {response.status_code}")
-        return {}
-    return response.json()
-
-def filter_repositories(repos):
-    filtered = []
+    repo_data = []
     for repo in repos:
-        owner = repo['owner']['login']
-        repo_name = repo['name']
-        props = get_custom_properties(owner, repo_name)
+        repo_info = {
+            "name": repo.name,
+            "full_name": repo.full_name,
+            "custom_properties": {}
+        }
+        try:
+            # PyGithub currently does not support .get_custom_properties() natively
+            # So this is a placeholder to mimic custom properties if you have an extension or wrapper.
+            # Replace this block with actual API call or method if using custom implementation.
+            props = repo.get_properties()  # You'll need to have this defined or monkey-patched
+            for prop in props:
+                repo_info["custom_properties"][prop.name] = prop.value
+        except Exception as e:
+            repo_info["custom_properties"]["error"] = str(e)
+        repo_data.append(repo_info)
+    return repo_data
 
-        # Debug print to see what's inside props
-        # print(f"Repo: {repo_name}, Properties: {props}")
 
-        # props is expected to be a dict with property names and their values
-        # GitHub API usually returns property values as strings
-        export_value = props.get('export', '').lower()
-        status_value = props.get('status', '').lower()
-
-        if export_value == REQUIRED_EXPORT and status_value == REQUIRED_STATUS:
-            filtered.append({
-                'name': repo_name,
-                'full_name': repo['full_name'],
-                'export': export_value,
-                'status': status_value
-            })
+def filter_repositories_by_properties(repo_data, export_value, status_value):
+    filtered = []
+    for repo in repo_data:
+        props = repo["custom_properties"]
+        if props.get("export", "").lower() == export_value and props.get("status", "").lower() == status_value:
+            filtered.append(repo)
     return filtered
 
-def export_to_excel(repos):
+
+def export_filtered_to_excel(filtered_repos, org_name):
     wb = Workbook()
     ws = wb.active
     ws.title = "Filtered Repositories"
     ws.append(["Name", "Full Name", "Export", "Status"])
-    for repo in repos:
-        ws.append([repo['name'], repo['full_name'], repo['export'], repo['status']])
-    filename = f"{ORG_NAME}_filtered_repos.xlsx"
+
+    for repo in filtered_repos:
+        props = repo["custom_properties"]
+        ws.append([
+            repo["name"],
+            repo["full_name"],
+            props.get("export", ""),
+            props.get("status", "")
+        ])
+
+    filename = f"{org_name}_filtered_repos.xlsx"
     wb.save(filename)
     print(f"Excel file saved as: {filename}")
 
-def main():
-    print("Fetching repositories...")
-    repos = get_repositories()
-    print(f"Total repositories fetched: {len(repos)}")
 
-    print("Filtering repositories based on custom properties...")
-    filtered_repos = filter_repositories(repos)
-    print(f"Repositories matching filter: {len(filtered_repos)}")
+if __name__ == '__main__':
+    org_name = "j-chaganti"  # Replace with your GitHub org or username
+    github_token = "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"  # Replace with your GitHub token
 
-    export_to_excel(filtered_repos)
+    repos_with_properties = get_org_repos_with_custom_properties(org_name, github_token)
 
-if __name__ == "__main__":
-    main()
+    print(f"\nFetched {len(repos_with_properties)} repositories. Filtering based on properties...\n")
+
+    filtered_repos = filter_repositories_by_properties(repos_with_properties, REQUIRED_EXPORT, REQUIRED_STATUS)
+
+    for repo in filtered_repos:
+        print(f"✅ Repo: {repo['name']}")
+        for key, value in repo["custom_properties"].items():
+            print(f"   - {key}: {value}")
+        print("-" * 30)
+
+    print(f"\nExporting {len(filtered_repos)} filtered repositories to Excel...\n")
+    export_filtered_to_excel(filtered_repos, org_name)
+
+
