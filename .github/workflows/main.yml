@@ -23,6 +23,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install requests openpyxl
+        pip install PyGithub
 
     - name: Run repo export script
       env:
