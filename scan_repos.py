@@ -176,4 +176,50 @@ for repo in all_repos:
     metadata = {}
 
     try:
-        subprocess.run(["git", "clone", "--depth=1", clone_url, temp_dir], check=True, stdout
+        subprocess.run(["git", "clone", "--depth=1", clone_url, temp_dir], check=True, stdout=subprocess.DEVNULL)
+        custom_path = os.path.join(temp_dir, ".github", "custom.json")
+        if not os.path.exists(custom_path):
+            continue
+
+        with open(custom_path, "r") as f:
+            metadata = json.load(f)
+
+        # Apply filters
+        if metadata.get("export") != REQUIRED_EXPORT:
+            continue
+        if metadata.get("status", "").lower() != REQUIRED_STATUS.lower():
+            continue
+
+        # ✅ Repo passes filter — save with metadata
+        filtered_repos.append({
+            "repo": repo,
+            "metadata": metadata
+        })
+
+    except Exception as e:
+        print(f"⚠️ Skipping {repo['name']}: error while reading metadata – {e}")
+        continue
+
+    finally:
+        shutil.rmtree(temp_dir)
+
+print(f"✅ {len(filtered_repos)} repos matched (export=true AND status='changes required')")
+
+# Step 5: Save to Excel
+wb = Workbook()
+ws = wb.active
+ws.title = "Filtered GitHub Repos"
+
+custom_keys = ["export", "status"]
+ws.append(["Name", "URL"] + [key.capitalize() for key in custom_keys])
+
+for entry in filtered_repos:
+    repo = entry["repo"]
+    metadata = entry["metadata"]
+
+    row = [repo['name'], repo['html_url']] + [metadata.get(key, "") for key in custom_keys]
+    ws.append(row)
+
+filename = f"{username}_filtered_repos.xlsx"
+wb.save(filename)
+print(f"📁 Excel file saved as: {filename}")
