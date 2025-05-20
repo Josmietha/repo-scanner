@@ -16,14 +16,14 @@ def get_organizations():
     response = requests.get(url, headers=HEADERS)
     print(f"🔍 Fetching organizations: {response.status_code}")
     response.raise_for_status()
-    return response.json().get("data", [])
+    return response.json()  # ✅ It's a list, not a dict with "data"
 
 def get_repos_for_org(org_id):
     url = f"https://api.codacy.com/2.0/organizations/{org_id}/repositories"
     response = requests.get(url, headers=HEADERS)
     print(f"📦 Fetching repos for Org {org_id}: {response.status_code}")
     response.raise_for_status()
-    return response.json().get("data", [])
+    return response.json().get("data", [])  # ✅ This one still uses "data"
 
 def export_to_excel(repos):
     wb = Workbook()
@@ -54,15 +54,7 @@ def main():
         return
 
     for org in orgs:
-        org_id = org.get("id")
+        org_id = org.get("uuid") or org.get("id")  # Some APIs return `uuid` instead of `id`
         if org_id:
             repos = get_repos_for_org(org_id)
-            all_repos.extend(repos)
-
-    if not all_repos:
-        print("⚠️ No repositories found across your organizations.")
-    else:
-        export_to_excel(all_repos)
-
-if __name__ == "__main__":
-    main()
+            all_repos.extend(repos_
