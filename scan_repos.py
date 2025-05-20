@@ -1,4 +1,4 @@
-
+'''
 import os
 import requests
 import json
@@ -120,3 +120,60 @@ for repo in filtered_repos:
 filename = f"{username}_filtered_repos.xlsx"
 wb.save(filename)
 print(f"📁 Excel file saved as: {filename}")
+'''
+import os
+import requests
+import json
+import tempfile
+import subprocess
+from openpyxl import Workbook
+import shutil
+
+# 🔍 Filter Conditions
+REQUIRED_EXPORT = True
+REQUIRED_STATUS = "changes required"
+
+# Step 1: Environment Variables
+username = os.getenv('GITHUB_USERNAME')
+token = os.getenv('GITHUB_TOKEN')
+
+if not username or not token:
+    raise Exception("🚨 Missing GITHUB_USERNAME or GITHUB_TOKEN")
+
+# Step 2: API Setup
+headers = {
+    "Authorization": f"token {token}",
+    "Accept": "application/vnd.github+json"
+}
+
+# Step 3: Fetch All Repos
+print("📡 Fetching repositories...")
+page = 1
+all_repos = []
+
+while True:
+    url = f"https://api.github.com/user/repos?per_page=100&page={page}&visibility=all"
+    response = requests.get(url, headers=headers)
+    if response.status_code != 200:
+        print(f"🚨 API Error: {response.status_code}")
+        print("Response:", response.text)
+        break
+    repos = response.json()
+    if not repos:
+        break
+    all_repos.extend(repos)
+    page += 1
+
+print(f"🧮 Total repositories fetched: {len(all_repos)}")
+
+# Step 4: Apply Filtering (and cache metadata)
+print("🧹 Filtering based on custom.json properties...")
+filtered_repos = []
+
+for repo in all_repos:
+    clone_url = repo['clone_url']
+    temp_dir = tempfile.mkdtemp()
+    metadata = {}
+
+    try:
+        subprocess.run(["git", "clone", "--depth=1", clone_url, temp_dir], check=True, stdout
